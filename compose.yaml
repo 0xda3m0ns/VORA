@@ -1,0 +1,11 @@
+services:
+  vora-openplc:
+    image: ghcr.io/autonomy-logic/openplc-runtime:v4.3.2
+    network_mode: host
+    volumes:
+      - vora-plc:/var/run/runtime 
+
+volumes:
+  vora-plc:
+    external: true
+    name: vora-plc
