@@ -1,0 +1,16 @@
+# Keluaran OpenPLC Editor
+/build/
+
+# Lingkungan dan cache Python
+/.venv/
+__pycache__/
+*.py[cod]
+
+# Hasil pengujian lokal
+/runs/
+/smoke.log
+
+# Konfigurasi lokal yang mungkin berisi rahasia
+.env
+.env.*
+!.env.example
