@@ -535,6 +535,16 @@ class Lab:
                  f"sebanyak {count} kali."
         if last_exception is not None:
             detail += f" Exception Modbus terakhir: {last_exception}."
+        received = [
+            sample for sample in self.samples[start_index:]
+            if sample.exception is None
+        ]
+        if not received:
+            detail += (
+                f" Tidak ada request Modbus yang diterima di "
+                f"{self.host}:{self.port} (unit {self.unit}); pastikan PLC "
+                f"atau fake PLC berjalan dan terhubung."
+            )
         raise Incomplete(detail)
 
     def alarm_samples(self, start_index: int, since: float) -> list[Sample]:

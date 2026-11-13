@@ -240,13 +240,15 @@ Jalankan PLC virtual di satu terminal:
 uv run --no-project --python 3.12 --with "pymodbus==3.11.4" python tests/fake_plc.py --fixture A
 ```
 
+PLC virtual akan menampilkan `Menunggu runner di ...` sampai runner terhubung, lalu `Terhubung ke runner ...`. Setelah runner selesai, ia keluar sendiri dengan pesan `Koneksi ke runner terputus; keluar.` — tidak perlu `Ctrl+C`. Tekan `Ctrl+C` hanya jika ingin menghentikannya sebelum runner dijalankan. Output retry dan dump frame internal PyModbus tidak ditampilkan.
+
 Lalu jalankan runner di terminal lain. Flag `--auto-start` melewati prompt Enter:
 
 ```bash
 uv run --no-project --python 3.12 --with "pymodbus==3.11.4" --with "pyyaml>=6.0.3" python runner.py --fixture A --auto-start
 ```
 
-Matriks yang dihasilkan sama dengan tabel di atas: A keluar `0`; B dan C keluar `1` dengan pola PASS/FAIL/BLOCKED yang sama. Untuk menguji jalur gangguan alat, jalankan runner **tanpa** PLC virtual; langkah pertama akan `INCOMPLETE` dan runner keluar `2`.
+Matriks yang dihasilkan sama dengan tabel di atas: A keluar `0`; B dan C keluar `1` dengan pola PASS/FAIL/BLOCKED yang sama. Untuk menguji jalur gangguan alat, jalankan runner **tanpa** PLC virtual; langkah pertama akan `INCOMPLETE` dengan pesan `Tidak ada request Modbus yang diterima ...`, dan runner keluar `2`.
 
 Regresi untuk jendela evaluasi alarm dan validasi manifest dapat dijalankan tanpa OpenPLC:
 
@@ -268,7 +270,7 @@ Alarm akan sempat menulis OFF tepat saat reset ditekan di 95%, lalu menyala lagi
 |---|---|
 | Editor menunjukkan `PLC: EMPTY` atau log `No libplc_*.so file found` | Lakukan **Build & Upload** pada proyek yang akan diuji. Jika status setelah upload `STOPPED`, klik **Start**. |
 | Runner gagal memakai port `1502` | Hentikan `smoke.py` atau runner lain yang masih berjalan. |
-| `INCOMPLETE` karena belum ada pembacaan FC04 | Pastikan PLC `RUNNING`, target **Runtime v4**, dan Remote Device mengarah ke `127.0.0.1:1502` dengan Slave ID `1`. Periksa juga proyek yang diunggah. |
+| `INCOMPLETE`: `Tidak ada request Modbus` atau belum ada pembacaan FC04 | Pastikan PLC/fake PLC berjalan, PLC `RUNNING`, target **Runtime v4**, dan Remote Device mengarah ke `127.0.0.1:1502` dengan Slave ID `1`. Periksa juga proyek yang diunggah. |
 | `INCOMPLETE`: `FC4 offset 1 belum membaca 75` | Proyek yang berjalan tidak memakai offset `1`. Ini terjadi bila `--fixture B` dipakai tetapi proyek A/C yang diunggah. Unggah `fixtures/B`. |
 | `Artefak ... TIDAK cocok` atau `Artefak yang dipakai tidak cocok dengan manifest` | Berkas fixture/suite berubah setelah manifest dibuat. Jalankan `python tools/build_manifest.py`, atau periksa apakah paket yang diunggah memang dari folder fixture yang benar. |
 | `Manifest ... tidak memuat artefak wajib` atau `entri suite wajib` | Manifest tidak lengkap dan sengaja ditolak agar tidak ada verifikasi kosong. Jalankan `python tools/build_manifest.py`; manifest harus memuat `logic`, `io_config`, `project`, dan `suite`. |

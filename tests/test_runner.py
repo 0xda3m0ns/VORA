@@ -70,6 +70,21 @@ class ManifestTests(unittest.TestCase):
             verify_manifest(self.path, "A", self.suite, enabled=True)
 
 
+class NoConnectionTests(unittest.IsolatedAsyncioTestCase):
+    async def test_pesan_tanpa_request_modbus(self) -> None:
+        timing = Timing(
+            plc_scan_s=0.02,
+            response_timeout_s=0.05,
+            hold_window_s=0.01,
+            min_alarm_samples=2,
+            reset_reads=2,
+        )
+        lab = Lab("A", "127.0.0.1", 15020, 1, timing)
+        base = lab.loop.time()
+        with self.assertRaisesRegex(Incomplete, "Tidak ada request Modbus"):
+            await lab.wait_reads(4, 0, 75, 1, 0, base)
+
+
 class HoldWindowTests(unittest.IsolatedAsyncioTestCase):
     async def asyncSetUp(self) -> None:
         timing = Timing(
