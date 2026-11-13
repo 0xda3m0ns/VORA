@@ -330,6 +330,9 @@ def _manifest_fixture_summary(entry: dict[str, Any]) -> dict[str, str | None]:
     return summary
 
 
+REQUIRED_ARTIFACT_KINDS = ("logic", "io_config", "project")
+
+
 def verify_manifest(
     path: Path,
     fixture: str,
@@ -371,11 +374,24 @@ def verify_manifest(
     for name, entry in fixtures.items():
         if not isinstance(entry, dict) or not isinstance(entry.get("artifacts"), list):
             raise ConfigError(f"Manifest fixture {name} tidak memuat artifacts.")
+        kinds: set[str] = set()
         for artifact in entry["artifacts"]:
             if not isinstance(artifact, dict):
                 raise ConfigError(f"Manifest fixture {name} memuat artefak tidak valid.")
+            kinds.add(_string(artifact.get("kind"), f"manifest.fixtures.{name}.kind"))
+            _string(artifact.get("path"), f"manifest.fixtures.{name}.path")
             if not _is_sha256(artifact.get("sha256")):
                 raise ConfigError(f"Manifest fixture {name} memuat sha256 tidak valid.")
+
+        # Manifest kosong tidak boleh dianggap cocok: tanpa artefak wajib,
+        # tidak ada satu pun berkas yang benar-benar diperiksa.
+        missing = set(REQUIRED_ARTIFACT_KINDS) - kinds
+        if not entry["artifacts"] or missing:
+            detail = sorted(missing) if missing else sorted(REQUIRED_ARTIFACT_KINDS)
+            raise ConfigError(
+                f"Manifest fixture {name} tidak memuat artefak wajib: {detail}. "
+                "Jalankan tools/build_manifest.py."
+            )
         report["fixtures"][name] = _manifest_fixture_summary(entry)
 
     selected = fixtures.get(fixture)
@@ -400,22 +416,25 @@ def verify_manifest(
         })
 
     suite_entry = document.get("suite")
-    if isinstance(suite_entry, dict):
-        expected = suite_entry.get("sha256")
-        relative = suite_entry.get("path")
-        if not _is_sha256(expected) or not isinstance(relative, str):
-            raise ConfigError("Manifest memuat entri suite yang tidak valid.")
-        suite_match = (
-            expected.lower() == suite.sha256
-            and (path.parent / relative).resolve() == suite.path.resolve()
+    if not isinstance(suite_entry, dict):
+        raise ConfigError(
+            "Manifest tidak memuat entri suite wajib. Jalankan tools/build_manifest.py."
         )
-        all_match = all_match and suite_match
-        report["suite"] = {
-            "path": relative,
-            "expected_sha256": expected.lower(),
-            "actual_sha256": suite.sha256,
-            "match": suite_match,
-        }
+    expected = suite_entry.get("sha256")
+    relative = suite_entry.get("path")
+    if not _is_sha256(expected) or not isinstance(relative, str):
+        raise ConfigError("Manifest memuat entri suite yang tidak valid.")
+    suite_match = (
+        expected.lower() == suite.sha256
+        and (path.parent / relative).resolve() == suite.path.resolve()
+    )
+    all_match = all_match and suite_match
+    report["suite"] = {
+        "path": relative,
+        "expected_sha256": expected.lower(),
+        "actual_sha256": suite.sha256,
+        "match": suite_match,
+    }
 
     selected_summary = _manifest_fixture_summary(selected)
     selected_summary["items"] = report["items"]
@@ -531,18 +550,31 @@ class Lab:
         self,
         step: Step,
         start_index: int,
+        applied_at: float,
         input_read_at: float,
     ) -> None:
         since = input_read_at + self.timing.plc_scan_s
         if step.hold:
             await asyncio.sleep(max(0.0, since + self.timing.hold_window_s - self.loop.time()))
+
+            # Langkah hold menyatakan kondisi yang harus bertahan. Periksa
+            # seluruh jejak sejak stimulus diterapkan, termasuk transisi
+            # sebelum pembacaan input terkonfirmasi, supaya alarm yang sempat
+            # padam di celah itu tidak lolos.
+            observed = self.alarm_samples(start_index, applied_at)
+            deviations = [sample for sample in observed if sample.value != step.alarm]
+            if deviations:
+                first = deviations[0]
+                elapsed = round((first.at - self.origin) * 1000, 1)
+                raise FunctionalFailure(
+                    f"Alarm menyimpang dari {step.alarm!r} pada {elapsed} ms "
+                    f"(nilai {first.value!r}) selama langkah hold."
+                )
+
+            # Tetap syaratkan sampel segar setelah PLC membaca input.
             recent = self.alarm_samples(start_index, since)
             if len(recent) < self.timing.min_alarm_samples:
                 raise Incomplete("Sampel FC05 segar kurang selama jendela uji.")
-            if any(sample.value != step.alarm for sample in recent):
-                raise FunctionalFailure(
-                    f"Alarm menyimpang dari {step.alarm!r} selama jendela uji."
-                )
             return
 
         deadline = self.loop.time() + self.timing.response_timeout_s
@@ -590,7 +622,7 @@ class Lab:
                 input_read_at = max(input_read_at, sample.at)
 
             if step.alarm is not None:
-                await self.verify_alarm(step, start_index, input_read_at)
+                await self.verify_alarm(step, start_index, applied_at, input_read_at)
             result["status"] = "PASS"
         except (Incomplete, FunctionalFailure) as exc:
             result["status"] = "INCOMPLETE" if isinstance(exc, Incomplete) else "FAIL"

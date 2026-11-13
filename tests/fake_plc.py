@@ -25,6 +25,8 @@ def main() -> None:
     parser.add_argument("--unit", type=int, default=1)
     parser.add_argument("--interval", type=float, default=0.02,
                         help="Jeda polling dalam detik.")
+    parser.add_argument("--fault", choices=("none", "reset-glitch"), default="none",
+                        help="Suntikkan kesalahan untuk menguji deteksi runner.")
     args = parser.parse_args()
 
     level_offset = 1 if args.fixture == "B" else 0
@@ -59,13 +61,20 @@ def main() -> None:
             level = level_response.registers[0]
             reset = bool(reset_response.bits[0])
 
+            # Fault demo: alarm sempat padam satu siklus saat reset ditekan
+            # di level tinggi, lalu menyala lagi. Runner harus menangkapnya.
+            glitch = (
+                args.fault == "reset-glitch"
+                and reset and not previous_reset and level >= threshold
+            )
+
             if level >= threshold:
                 latched = True
             elif reset and not previous_reset:
                 latched = False
             previous_reset = reset
 
-            client.write_coil(0, latched, device_id=args.unit)
+            client.write_coil(0, False if glitch else latched, device_id=args.unit)
             time.sleep(args.interval)
     except KeyboardInterrupt:
         pass

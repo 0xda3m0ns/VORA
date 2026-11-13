@@ -35,7 +35,7 @@ Pengujian menggunakan tiga *fixture* yang dimuat bergantian ke Runtime yang sama
 
 Flag `--fixture` pada runner memilih paket artefak, label laporan, dan offset level yang diharapkan. Proyek PLC yang sesuai tetap harus diunggah melalui Editor; runner tidak mengganti program yang sedang berjalan.
 
-Ekspektasi langkah tidak ditulis di kode. Runner membaca [suites/tank-alarm-v1.yaml](suites/tank-alarm-v1.yaml), memvalidasi skema dan rentang nilainya, lalu memakai versi skenario tersebut sebagai acuan. Berkas [manifest.json](manifest.json) mencatat SHA-256 logika, konfigurasi I/O, proyek, dan suite; runner membandingkannya sebelum pengujian dan menulis hasilnya ke laporan. Manifest memverifikasi **berkas paket yang dipakai**, bukan membaca ulang program dari Runtime; konfirmasi bahwa paket itulah yang diunggah tetap dilakukan operator.
+Ekspektasi langkah tidak ditulis di kode. Runner membaca [suites/tank-alarm-v1.yaml](suites/tank-alarm-v1.yaml), memvalidasi skema dan rentang nilainya, lalu memakai versi skenario tersebut sebagai acuan. Berkas [manifest.json](manifest.json) mencatat SHA-256 logika, konfigurasi I/O, proyek, dan suite; runner membandingkannya sebelum pengujian dan menulis hasilnya ke laporan. Manifest wajib memuat artefak `logic`, `io_config`, dan `project` untuk setiap fixture serta entri `suite`; manifest kosong ditolak dengan exit `2`, bukan dilaporkan cocok. Manifest memverifikasi **berkas paket yang dipakai**, bukan membaca ulang program dari Runtime; konfirmasi bahwa paket itulah yang diunggah tetap dilakukan operator.
 
 VORA menguji fungsi alarm dalam simulasi. Pemulihan program dari backup dan pemeriksaan keamanan dilakukan terpisah oleh tim teknis.
 
@@ -219,6 +219,8 @@ Terminal menampilkan label seperti `[Fixture B]` dan lokasi laporan. Setiap run 
 
 Pada laporan B, `artifacts.selected.logic_sha256` sama dengan fixture A, sedangkan `io_config_sha256` berbeda. Ini bukti yang bisa diperiksa langsung bahwa checksum logika cocok tetapi pemetaan I/O berubah.
 
+Untuk langkah `hold`, runner memeriksa **seluruh jejak FC05 sejak stimulus diterapkan**, termasuk sampel sebelum pembacaan input kedua dikonfirmasi, lalu tetap mewajibkan minimal dua sampel segar setelah PLC membaca input. Dengan begitu alarm yang sempat padam di celah transisi reset pada 95% tidak lolos.
+
 | Status | Arti |
 |---|---|
 | `PASS` | Respons memenuhi hasil yang diharapkan |
@@ -246,6 +248,20 @@ uv run --no-project --python 3.12 --with "pymodbus==3.11.4" --with "pyyaml>=6.0.
 
 Matriks yang dihasilkan sama dengan tabel di atas: A keluar `0`; B dan C keluar `1` dengan pola PASS/FAIL/BLOCKED yang sama. Untuk menguji jalur gangguan alat, jalankan runner **tanpa** PLC virtual; langkah pertama akan `INCOMPLETE` dan runner keluar `2`.
 
+Regresi untuk jendela evaluasi alarm dan validasi manifest dapat dijalankan tanpa OpenPLC:
+
+```bash
+uv run --no-project --python 3.12 --with "pymodbus==3.11.4" --with "pyyaml>=6.0.3" python -m unittest discover -s tests -v
+```
+
+Untuk melihat deteksi transisi secara langsung, jalankan PLC virtual dengan gangguan satu siklus:
+
+```bash
+python tests/fake_plc.py --fixture A --fault reset-glitch
+```
+
+Alarm akan sempat menulis OFF tepat saat reset ditekan di 95%, lalu menyala lagi. Runner harus melaporkan `FAIL S04` dengan pesan `Alarm menyimpang ... (nilai False)`, bukan lolos.
+
 ## Troubleshooting
 
 | Gejala | Yang perlu diperiksa |
@@ -255,6 +271,7 @@ Matriks yang dihasilkan sama dengan tabel di atas: A keluar `0`; B dan C keluar 
 | `INCOMPLETE` karena belum ada pembacaan FC04 | Pastikan PLC `RUNNING`, target **Runtime v4**, dan Remote Device mengarah ke `127.0.0.1:1502` dengan Slave ID `1`. Periksa juga proyek yang diunggah. |
 | `INCOMPLETE`: `FC4 offset 1 belum membaca 75` | Proyek yang berjalan tidak memakai offset `1`. Ini terjadi bila `--fixture B` dipakai tetapi proyek A/C yang diunggah. Unggah `fixtures/B`. |
 | `Artefak ... TIDAK cocok` atau `Artefak yang dipakai tidak cocok dengan manifest` | Berkas fixture/suite berubah setelah manifest dibuat. Jalankan `python tools/build_manifest.py`, atau periksa apakah paket yang diunggah memang dari folder fixture yang benar. |
+| `Manifest ... tidak memuat artefak wajib` atau `entri suite wajib` | Manifest tidak lengkap dan sengaja ditolak agar tidak ada verifikasi kosong. Jalankan `python tools/build_manifest.py`; manifest harus memuat `logic`, `io_config`, `project`, dan `suite`. |
 | `ConfigError` pada suite YAML | Pesan menyebut kunci/rentang yang salah. Perbaiki YAML; runner menolak level di luar 0–100, `mode` selain `reach`/`hold`, dan langkah tanpa `level_pct`/`reset`. |
 | `ModuleNotFoundError: yaml` | Tambahkan `--with "pyyaml>=6.0.3"` pada perintah `uv`, atau jalankan lewat `uv run` di folder proyek agar dependensi `pyproject.toml` dipakai. |
 | B mencatat offset `0` | Periksa **Offset pada baris grup `TankLevel`** di proyek B, simpan, lalu unggah ulang. |
