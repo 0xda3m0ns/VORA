@@ -1,0 +1,66 @@
+{
+  "name": "VORA_Virtual_IO",
+  "protocol": "modbus-tcp",
+  "modbusTcpConfig": {
+    "host": "127.0.0.1",
+    "port": 1502,
+    "timeout": 1000,
+    "slaveId": 1,
+    "ioGroups": [
+      {
+        "id": "df1acfb8-bc0a-4789-a521-2b166318a0a2",
+        "name": "TankLevel",
+        "functionCode": "4",
+        "cycleTime": 200,
+        "offset": "0",
+        "length": 1,
+        "errorHandling": "keep-last-value",
+        "ioPoints": [
+          {
+            "id": "TankLevel_0",
+            "name": "TankLevel_0",
+            "type": "Analog Input (Input Register)",
+            "iecLocation": "%IW0",
+            "alias": ""
+          }
+        ]
+      },
+      {
+        "id": "6e3f7a85-2942-45f8-aeaf-398861231674",
+        "name": "TankReset",
+        "functionCode": "2",
+        "cycleTime": 200,
+        "offset": "0",
+        "length": 1,
+        "errorHandling": "keep-last-value",
+        "ioPoints": [
+          {
+            "id": "TankReset_0",
+            "name": "TankReset_0",
+            "type": "Digital Input (Discrete Input)",
+            "iecLocation": "%IX0.0",
+            "alias": ""
+          }
+        ]
+      },
+      {
+        "id": "97431b9e-bba8-47f0-96ee-ab71e5e7518b",
+        "name": "TankAlarm",
+        "functionCode": "5",
+        "cycleTime": 200,
+        "offset": "0",
+        "length": 1,
+        "errorHandling": "keep-last-value",
+        "ioPoints": [
+          {
+            "id": "TankAlarm_0",
+            "name": "TankAlarm_0",
+            "type": "Digital Output (Single Coil)",
+            "iecLocation": "%QX0.0",
+            "alias": ""
+          }
+        ]
+      }
+    ]
+  }
+}

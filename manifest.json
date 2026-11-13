@@ -1,0 +1,70 @@
+{
+  "schema_version": 1,
+  "generated_by": "tools/build_manifest.py",
+  "suite": {
+    "path": "suites/tank-alarm-v1.yaml",
+    "sha256": "184730757807e75f20a54a6f73fcb860c78093e0497e29b8e080c472903d1514"
+  },
+  "fixtures": {
+    "A": {
+      "description": "Baseline: ambang 80%, level dibaca dari register 0.",
+      "artifacts": [
+        {
+          "kind": "logic",
+          "path": "fixtures/A/pous/programs/main.st",
+          "sha256": "4abc4a07a43ae1e76f944eb9a650d7e373f375885d4343a2dcc0deda00bf2533"
+        },
+        {
+          "kind": "io_config",
+          "path": "fixtures/A/devices/remote/VORA_Virtual_IO.json",
+          "sha256": "a9fb4baf15b4e959328e8fc9ccce08c6f7115a265ab0831a8a87d5b1d6003cda"
+        },
+        {
+          "kind": "project",
+          "path": "fixtures/A/project.json",
+          "sha256": "e815b3e9d64c4ba88abb0615463fd5880bc83f450bef7d4ee1d362743d05f46a"
+        }
+      ]
+    },
+    "B": {
+      "description": "Pemetaan keliru: logika sama dengan A, level dibaca dari register 1 (tetap 75%).",
+      "artifacts": [
+        {
+          "kind": "logic",
+          "path": "fixtures/B/pous/programs/main.st",
+          "sha256": "4abc4a07a43ae1e76f944eb9a650d7e373f375885d4343a2dcc0deda00bf2533"
+        },
+        {
+          "kind": "io_config",
+          "path": "fixtures/B/devices/remote/VORA_Virtual_IO.json",
+          "sha256": "cdb9cd50f17513037cee21fbea143dc9ddb5d863a39412d5f412abe23397ee8d"
+        },
+        {
+          "kind": "project",
+          "path": "fixtures/B/project.json",
+          "sha256": "e33fe4ac2b2fad7d83b1e9f70501e41f2754c0d7d470adac8653c7c69031baff"
+        }
+      ]
+    },
+    "C": {
+      "description": "Ambang 90%: checksum paket cocok, tetapi aktivasi di 80-85% gagal.",
+      "artifacts": [
+        {
+          "kind": "logic",
+          "path": "fixtures/C/pous/programs/main.st",
+          "sha256": "793d6776b00c200b49943db37365d70e997d3cc1f23770329d84d15d30c0dd5e"
+        },
+        {
+          "kind": "io_config",
+          "path": "fixtures/C/devices/remote/VORA_Virtual_IO.json",
+          "sha256": "a9fb4baf15b4e959328e8fc9ccce08c6f7115a265ab0831a8a87d5b1d6003cda"
+        },
+        {
+          "kind": "project",
+          "path": "fixtures/C/project.json",
+          "sha256": "654d11509788b4489522d7e89397475e9bd24dea87857a2d8dd3cde7d55503f4"
+        }
+      ]
+    }
+  }
+}

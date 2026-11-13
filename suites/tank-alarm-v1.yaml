@@ -1,0 +1,105 @@
+suite_id: tank-alarm-v1
+version: 1
+source: SOP-VORA-01@1
+description: >-
+  Uji fungsi alarm tangki setelah pemulihan program PLC. Ekspektasi mengikuti
+  SOP sintetis SOP-VORA-01 revisi 1, disimpan terpisah dari paket backup.
+
+timing:
+  plc_scan_ms: 20
+  response_timeout_ms: 3000
+  hold_window_ms: 1000
+  min_alarm_samples: 2
+  reset_reads: 2
+
+# Potongan langkah yang dipakai ulang. Kunci x- diabaikan oleh runner.
+x-steps:
+  level75: &level75
+    name: Kembalikan level ke 75% dan lepas reset
+    level_pct: 75
+    reset: false
+  reset_pulse: &reset_pulse
+    name: Pulsa reset persiapan di 75%
+    reset: true
+    expect_alarm: false
+  reset_release: &reset_release
+    name: Lepas reset persiapan
+    reset: false
+    expect_alarm: false
+    mode: hold
+  level95: &level95
+    name: Aktifkan alarm di 95%
+    level_pct: 95
+    expect_alarm: true
+  drop75_hold: &drop75_hold
+    name: Turun ke 75% dengan alarm aktif
+    level_pct: 75
+    expect_alarm: true
+    mode: hold
+
+cases:
+  - id: S01
+    name: Kondisi normal
+    steps:
+      - *level75
+      - *reset_pulse
+      - *reset_release
+
+  - id: S02
+    name: Aktivasi alarm pada ambang
+    continue_after_failure: true
+    prerequisites:
+      - *level75
+      - *reset_pulse
+      - *reset_release
+    steps:
+      - name: Naik ke 80%
+        level_pct: 80
+        expect_alarm: true
+      - name: Naik ke 85%
+        level_pct: 85
+        expect_alarm: true
+
+  - id: S03
+    name: Penahanan alarm setelah level turun
+    prerequisites:
+      - *level75
+      - *reset_pulse
+      - *reset_release
+      - *level95
+    steps:
+      - *drop75_hold
+
+  - id: S04
+    name: Reset saat level tinggi
+    prerequisites:
+      - *level75
+      - *reset_pulse
+      - *reset_release
+      - *level95
+    steps:
+      - name: Tekan reset di 95%
+        reset: true
+        expect_alarm: true
+        mode: hold
+      - name: Lepas reset di 95%
+        reset: false
+        expect_alarm: true
+        mode: hold
+
+  - id: S05
+    name: Reset saat level rendah
+    prerequisites:
+      - *level75
+      - *reset_pulse
+      - *reset_release
+      - *level95
+      - *drop75_hold
+    steps:
+      - name: Tekan reset di 75%
+        reset: true
+        expect_alarm: false
+      - name: Lepas reset di 75%
+        reset: false
+        expect_alarm: false
+        mode: hold
